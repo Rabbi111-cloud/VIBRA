@@ -8,7 +8,7 @@ a {
 }
 
 input::placeholder {
-  color: #9ca3af; /* Gray placeholder for inputs */
+  color: #9ca3af; 
 }
 
 button:focus, input:focus {
