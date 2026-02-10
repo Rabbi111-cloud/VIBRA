@@ -11,38 +11,49 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+const dashboardView = document.getElementById("dashboard-view");
+const chatView = document.getElementById("chat-view");
+
 const chatBox = document.getElementById("chat-box");
 const chatForm = document.getElementById("chat-form");
 const userEmailDisplay = document.getElementById("user-email");
-const channelName = document.getElementById("channel-name");
-const channelsList = document.getElementById("channels-list").querySelectorAll("li");
+const userEmailDisplayChat = document.getElementById("user-email-chat");
+
+let currentChannel = "general";
 
 // Redirect to login if not signed in
 auth.onAuthStateChanged(user => {
   if (!user) window.location.href = "login.html";
-  else userEmailDisplay.textContent = user.email;
+  else {
+    userEmailDisplay.textContent = user.email;
+    userEmailDisplayChat.textContent = user.email;
+    loadOnlineUsers();
+  }
 });
 
-// Logout
-document.getElementById("logout-btn").addEventListener("click", () => {
-  auth.signOut().then(() => window.location.href = "login.html");
-});
+// Logout buttons
+document.getElementById("logout-btn").addEventListener("click", () => auth.signOut().then(() => window.location.href = "login.html"));
+document.getElementById("logout-btn-chat").addEventListener("click", () => auth.signOut().then(() => window.location.href = "login.html"));
 
-// Current channel
-let currentChannel = "general";
-
-// Click channel to switch
-channelsList.forEach(li => {
-  li.addEventListener("click", () => {
-    channelsList.forEach(el => el.classList.remove("active-channel"));
-    li.classList.add("active-channel");
-    currentChannel = li.textContent.replace("# ","");
-    channelName.textContent = li.textContent;
-    loadMessages();
+// Helper to show chat view when channel clicked
+function setupChannelClick(listId) {
+  const channels = document.getElementById(listId).querySelectorAll("li");
+  channels.forEach(li => {
+    li.addEventListener("click", () => {
+      currentChannel = li.textContent.replace("# ", "");
+      document.getElementById("channel-name").textContent = li.textContent;
+      dashboardView.classList.add("hidden");
+      chatView.classList.remove("hidden");
+      loadMessages();
+    });
   });
-});
+}
 
-// Send message with AI sentiment check (placeholder)
+// Set up channel click for both sidebar copies
+setupChannelClick("channels-list");
+setupChannelClick("channels-list-chat");
+
+// Send message with AI sentiment check
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = document.getElementById("chat-msg").value.trim();
@@ -77,7 +88,7 @@ function loadMessages() {
 
         if(m.user === auth.currentUser.email){
           msgDiv.classList.add("bg-blue-600","self-end","text-white");
-        }else{
+        } else {
           msgDiv.classList.add("bg-gray-700","self-start","text-gray-200");
         }
 
@@ -92,5 +103,22 @@ function loadMessages() {
     });
 }
 
-// Initially load messages
-loadMessages();
+// Load online users (placeholder, all authenticated users)
+function loadOnlineUsers() {
+  db.collection("messages")
+    .get()
+    .then(snapshot => {
+      const users = new Set();
+      snapshot.forEach(doc => users.add(doc.data().user));
+      const usersList = document.getElementById("users-list");
+      const usersListChat = document.getElementById("users-list-chat");
+      usersList.innerHTML = "";
+      usersListChat.innerHTML = "";
+      users.forEach(u => {
+        const li = document.createElement("li");
+        li.textContent = u.split("@")[0];
+        usersList.appendChild(li.cloneNode(true));
+        usersListChat.appendChild(li.cloneNode(true));
+      });
+    });
+}
