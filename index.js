@@ -16,13 +16,20 @@ const chatView = document.getElementById("chat-view");
 
 const chatBox = document.getElementById("chat-box");
 const chatForm = document.getElementById("chat-form");
+const chatInput = document.getElementById("chat-msg");
+
 const userEmailDisplay = document.getElementById("user-email");
 const userEmailDisplayChat = document.getElementById("user-email-chat");
+const statusEl = document.getElementById("status");
 
 let currentChannel = "general";
 let userSignupTime; // Timestamp to filter messages for new users
 
-// Redirect to login if not signed in
+const typingRef = db.collection("typingStatus");
+
+// =====================
+// AUTH & ONLINE USERS
+// =====================
 auth.onAuthStateChanged(async user => {
   if (!user) {
     window.location.href = "login.html";
@@ -33,18 +40,44 @@ auth.onAuthStateChanged(async user => {
   userEmailDisplay.textContent = user.email;
   userEmailDisplayChat.textContent = user.email;
 
-  // Save the user's signup time
+  // Save signup time for Option B
   userSignupTime = firebase.firestore.Timestamp.fromDate(new Date(user.metadata.creationTime));
 
-  // Load online users
-  loadOnlineUsers();
+  // Add user to onlineUsers collection
+  const userDoc = db.collection("onlineUsers").doc(user.uid);
+  await userDoc.set({
+    email: user.email,
+    lastActive: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  // Listen to online users in real-time
+  db.collection("onlineUsers").onSnapshot(snapshot => {
+    const usersList = document.getElementById("users-list");
+    const usersListChat = document.getElementById("users-list-chat");
+    usersList.innerHTML = "";
+    usersListChat.innerHTML = "";
+    snapshot.forEach(doc => {
+      const u = doc.data();
+      const li = document.createElement("li");
+      li.textContent = u.email.split("@")[0];
+      usersList.appendChild(li.cloneNode(true));
+      usersListChat.appendChild(li.cloneNode(true));
+    });
+  });
+
+  // Remove user when they close tab
+  window.addEventListener("beforeunload", () => {
+    db.collection("onlineUsers").doc(user.uid).delete();
+  });
 });
 
 // Logout buttons
 document.getElementById("logout-btn").addEventListener("click", () => auth.signOut().then(() => window.location.href = "login.html"));
 document.getElementById("logout-btn-chat").addEventListener("click", () => auth.signOut().then(() => window.location.href = "login.html"));
 
-// Setup channel click for dashboard and chat sidebar
+// =====================
+// CHANNEL CLICK SETUP
+// =====================
 function setupChannelClick(listId) {
   const channels = document.getElementById(listId).querySelectorAll("li");
   channels.forEach(li => {
@@ -52,7 +85,7 @@ function setupChannelClick(listId) {
       currentChannel = li.textContent.replace("# ", "");
       document.getElementById("channel-name").textContent = li.textContent;
 
-      // Swap views: hide dashboard, show chat
+      // Swap views
       dashboardView.classList.add("hidden");
       chatView.classList.remove("hidden");
 
@@ -62,17 +95,18 @@ function setupChannelClick(listId) {
   });
 }
 
-// Set up channel click for both sidebars
 setupChannelClick("channels-list");
 setupChannelClick("channels-list-chat");
 
-// Send message with AI sentiment check
+// =====================
+// SEND MESSAGES
+// =====================
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const msg = document.getElementById("chat-msg").value.trim();
+  const msg = chatInput.value.trim();
   if (!msg) return;
 
-  // AI sentiment placeholder
+  // Simple AI sentiment check
   const toxicWords = ["badword1", "badword2"];
   const isToxic = toxicWords.some(word => msg.toLowerCase().includes(word));
 
@@ -84,16 +118,18 @@ chatForm.addEventListener("submit", async (e) => {
     channel: currentChannel
   });
 
-  document.getElementById("chat-msg").value = "";
+  chatInput.value = "";
 });
 
-// Load messages per channel (Option B: only messages after user signup)
+// =====================
+// LOAD MESSAGES
+// =====================
 function loadMessages() {
   chatBox.innerHTML = "";
 
   db.collection("messages")
     .where("channel", "==", currentChannel)
-    .where("timestamp", ">=", userSignupTime) // Only messages after signup
+    .where("timestamp", ">=", userSignupTime) // Option B: only after signup
     .orderBy("timestamp")
     .onSnapshot(snapshot => {
       chatBox.innerHTML = "";
@@ -119,22 +155,23 @@ function loadMessages() {
     });
 }
 
-// Load online users (simple placeholder: all users who sent a message)
-function loadOnlineUsers() {
-  db.collection("messages")
-    .get()
-    .then(snapshot => {
-      const users = new Set();
-      snapshot.forEach(doc => users.add(doc.data().user));
-      const usersList = document.getElementById("users-list");
-      const usersListChat = document.getElementById("users-list-chat");
-      usersList.innerHTML = "";
-      usersListChat.innerHTML = "";
-      users.forEach(u => {
-        const li = document.createElement("li");
-        li.textContent = u.split("@")[0];
-        usersList.appendChild(li.cloneNode(true));
-        usersListChat.appendChild(li.cloneNode(true));
-      });
-    });
-}
+// =====================
+// TYPING INDICATOR
+// =====================
+chatInput.addEventListener("input", () => {
+  const typingDoc = typingRef.doc(currentChannel);
+  typingDoc.set({
+    [auth.currentUser.uid]: chatInput.value.length > 0
+  }, { merge: true });
+});
+
+// Listen for typing users
+typingRef.doc(currentChannel).onSnapshot(doc => {
+  const typingData = doc.data() || {};
+  const usersTyping = Object.entries(typingData)
+    .filter(([uid, isTyping]) => isTyping && uid !== auth.currentUser.uid)
+    .map(([uid]) => uid); // For now we show count only
+
+  if (usersTyping.length === 0) statusEl.textContent = "Online";
+  else statusEl.textContent = `${usersTyping.length} user(s) typing...`;
+});
