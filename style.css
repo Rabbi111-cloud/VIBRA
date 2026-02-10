@@ -1,0 +1,16 @@
+body {
+  line-height: 1.6;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+a {
+  transition: color 0.2s ease-in-out;
+}
+
+input::placeholder {
+  color: #9ca3af; /* Gray placeholder for inputs */
+}
+
+button:focus, input:focus {
+  outline: none;
+}
