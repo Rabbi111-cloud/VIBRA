@@ -1,24 +1,32 @@
 export default function Hero() {
   return (
-    <section className="bg-gray-50 py-24 text-center">
-      <h1 className="text-5xl font-bold">
-        Chat Freely. Stay Respectful.
-        <span className="block text-indigo-600">Let AI Keep the Peace.</span>
-      </h1>
+    <section className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-700 text-white">
+      <div className="text-center max-w-3xl px-6">
+        <h1 className="text-5xl font-bold mb-6">
+          AI-Powered Global Chat With Emotional Intelligence
+        </h1>
 
-      <p className="mt-6 max-w-2xl mx-auto text-gray-600">
-        A global chat platform powered by AI sentiment analysis to reduce toxicity
-        and promote healthier conversations.
-      </p>
+        <p className="text-lg opacity-90 mb-8">
+          A real-time communication platform that detects toxic conversations
+          and suggests calm-downs before conflicts escalate.
+        </p>
 
-      <div className="mt-8 flex justify-center gap-4">
-        <a href="/signup" className="px-6 py-3 bg-indigo-600 text-white rounded">
-          Get Started
-        </a>
-        <a href="#features" className="px-6 py-3 border rounded">
-          View Features
-        </a>
+        <div className="flex justify-center gap-4">
+          <a
+            href="#"
+            className="px-6 py-3 bg-white text-indigo-700 rounded-lg font-medium"
+          >
+            View Demo
+          </a>
+
+          <a
+            href="#"
+            className="px-6 py-3 border border-white rounded-lg"
+          >
+            GitHub Repo
+          </a>
+        </div>
       </div>
     </section>
-  )
+  );
 }
