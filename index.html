@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Sentiment Chat</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="style.css">
-  <script defer src="script.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Sentiment Chat</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="style.css">
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script defer src="script.js"></script>
 </head>
 <body class="bg-gray-900 text-white font-sans">
 
@@ -58,11 +60,12 @@
 <section id="signin" class="py-20 text-center bg-gray-900">
   <h2 class="text-4xl font-bold mb-6">Sign In / Register</h2>
   <p class="mb-8">Access the chat by signing in or creating a free account.</p>
-  <form class="max-w-md mx-auto flex flex-col gap-4">
-    <input type="email" placeholder="Email" class="px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-    <input type="password" placeholder="Password" class="px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400">
-    <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">Sign In</button>
+  <form id="auth-form" class="max-w-md mx-auto flex flex-col gap-4">
+    <input type="email" id="email" placeholder="Email" class="px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+    <input type="password" id="password" placeholder="Password" class="px-4 py-3 rounded-lg bg-gray-800 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+    <button type="submit" id="sign-in-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">Sign In / Register</button>
   </form>
+  <p id="auth-msg" class="mt-4 text-red-400"></p>
 </section>
 
 <!-- Download / CTA -->
@@ -70,12 +73,6 @@
   <h2 class="text-4xl font-bold mb-6">Download the App</h2>
   <p class="mb-8">Start chatting safely with AI-powered sentiment moderation.</p>
   <a href="#" class="bg-green-600 text-white px-10 py-4 rounded-lg font-semibold hover:bg-green-700 transition">Download Now</a>
-</section>
-
-<!-- Contact -->
-<section id="contact" class="bg-gray-800 py-20 text-center">
-  <h2 class="text-4xl font-bold mb-6">Contact Us</h2>
-  <p>Email: <a href="mailto:support@aisentimentchat.com" class="text-blue-400 hover:underline">support@aisentimentchat.com</a></p>
 </section>
 
 <!-- Footer -->
