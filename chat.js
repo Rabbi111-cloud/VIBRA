@@ -13,12 +13,12 @@ const db = firebase.firestore();
 
 const chatBox = document.getElementById("chat-box");
 const chatForm = document.getElementById("chat-form");
+const userEmailDisplay = document.getElementById("user-email");
 
-// Redirect to login if not signed in
+// Redirect if not logged in
 auth.onAuthStateChanged(user => {
-  if (!user) {
-    window.location.href = "login.html";
-  }
+  if (!user) window.location.href = "login.html";
+  else userEmailDisplay.textContent = user.email;
 });
 
 // Logout
@@ -41,14 +41,22 @@ chatForm.addEventListener("submit", (e) => {
   document.getElementById("chat-msg").value = "";
 });
 
-// Listen for real-time messages
+// Display messages with bubbles
 db.collection("messages").orderBy("timestamp")
   .onSnapshot(snapshot => {
     chatBox.innerHTML = "";
     snapshot.forEach(doc => {
       const m = doc.data();
-      const msgDiv = document.createElement("p");
-      msgDiv.innerHTML = `<strong>${m.user}:</strong> ${m.text}`;
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("max-w-xs", "p-3", "rounded-xl", "break-words");
+
+      if (m.user === auth.currentUser.email) {
+        msgDiv.classList.add("bg-blue-600", "self-end", "text-white");
+      } else {
+        msgDiv.classList.add("bg-gray-700", "self-start", "text-gray-200");
+      }
+
+      msgDiv.innerHTML = `<strong>${m.user.split('@')[0]}:</strong> ${m.text}`;
       chatBox.appendChild(msgDiv);
     });
     chatBox.scrollTop = chatBox.scrollHeight;
