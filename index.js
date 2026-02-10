@@ -11,6 +11,9 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// =====================
+// ELEMENTS
+// =====================
 const dashboardView = document.getElementById("dashboard-view");
 const chatView = document.getElementById("chat-view");
 
@@ -22,13 +25,21 @@ const userEmailDisplay = document.getElementById("user-email");
 const userEmailDisplayChat = document.getElementById("user-email-chat");
 const statusEl = document.getElementById("status");
 
-let currentChannel = "general";
-let userSignupTime; // Timestamp to filter messages for new users
+const channelsList = document.getElementById("channels-list");
+const channelsListChat = document.getElementById("channels-list-chat");
+
+let currentChannel = null;
+let userSignupTime;
 
 const typingRef = db.collection("typingStatus");
 
 // =====================
-// AUTH & ONLINE USERS
+// CHANNEL DEFINITIONS
+// =====================
+const CHANNELS = ["general", "ai-sentiment", "random"];
+
+// =====================
+// AUTH
 // =====================
 auth.onAuthStateChanged(async user => {
   if (!user) {
@@ -36,142 +47,172 @@ auth.onAuthStateChanged(async user => {
     return;
   }
 
-  // Show user email
   userEmailDisplay.textContent = user.email;
   userEmailDisplayChat.textContent = user.email;
 
-  // Save signup time for Option B
-  userSignupTime = firebase.firestore.Timestamp.fromDate(new Date(user.metadata.creationTime));
+  userSignupTime = firebase.firestore.Timestamp.fromDate(
+    new Date(user.metadata.creationTime)
+  );
 
-  // Add user to onlineUsers collection
-  const userDoc = db.collection("onlineUsers").doc(user.uid);
-  await userDoc.set({
+  await db.collection("onlineUsers").doc(user.uid).set({
     email: user.email,
     lastActive: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  // Listen to online users in real-time
-  db.collection("onlineUsers").onSnapshot(snapshot => {
-    const usersList = document.getElementById("users-list");
-    const usersListChat = document.getElementById("users-list-chat");
-    usersList.innerHTML = "";
-    usersListChat.innerHTML = "";
-    snapshot.forEach(doc => {
-      const u = doc.data();
-      const li = document.createElement("li");
-      li.textContent = u.email.split("@")[0];
-      usersList.appendChild(li.cloneNode(true));
-      usersListChat.appendChild(li.cloneNode(true));
-    });
-  });
-
-  // Remove user when they close tab
-  window.addEventListener("beforeunload", () => {
-    db.collection("onlineUsers").doc(user.uid).delete();
-  });
+  renderChannels();      // ✅ THIS FIXES IT
+  listenForOnlineUsers();
 });
 
-// Logout buttons
-document.getElementById("logout-btn").addEventListener("click", () => auth.signOut().then(() => window.location.href = "login.html"));
-document.getElementById("logout-btn-chat").addEventListener("click", () => auth.signOut().then(() => window.location.href = "login.html"));
+// =====================
+// LOGOUT
+// =====================
+document.getElementById("logout-btn").onclick =
+document.getElementById("logout-btn-chat").onclick = () =>
+  auth.signOut().then(() => window.location.href = "login.html");
 
 // =====================
-// CHANNEL CLICK SETUP
+// RENDER CHANNELS (KEY FIX)
 // =====================
-function setupChannelClick(listId) {
-  const channels = document.getElementById(listId).querySelectorAll("li");
-  channels.forEach(li => {
-    li.addEventListener("click", () => {
-      currentChannel = li.textContent.replace("# ", "");
-      document.getElementById("channel-name").textContent = li.textContent;
+function renderChannels() {
+  channelsList.innerHTML = "";
+  channelsListChat.innerHTML = "";
 
-      // Swap views
-      dashboardView.classList.add("hidden");
-      chatView.classList.remove("hidden");
+  CHANNELS.forEach(channel => {
+    const li1 = createChannelItem(channel);
+    const li2 = createChannelItem(channel);
 
-      // Load messages for this channel
-      loadMessages();
-    });
+    channelsList.appendChild(li1);
+    channelsListChat.appendChild(li2);
   });
 }
 
-setupChannelClick("channels-list");
-setupChannelClick("channels-list-chat");
+function createChannelItem(channel) {
+  const li = document.createElement("li");
+  li.textContent = `# ${channel}`;
+  li.className =
+    "px-3 py-2 rounded hover:bg-gray-700 cursor-pointer";
+
+  li.onclick = () => enterChannel(channel);
+  return li;
+}
 
 // =====================
-// SEND MESSAGES
+// ENTER CHANNEL
 // =====================
-chatForm.addEventListener("submit", async (e) => {
+function enterChannel(channel) {
+  currentChannel = channel;
+  document.getElementById("channel-name").textContent = `# ${channel}`;
+
+  dashboardView.classList.add("hidden");
+  chatView.classList.remove("hidden");
+
+  loadMessages();
+}
+
+// =====================
+// SEND MESSAGE
+// =====================
+chatForm.addEventListener("submit", async e => {
   e.preventDefault();
-  const msg = chatInput.value.trim();
-  if (!msg) return;
+  if (!chatInput.value.trim()) return;
 
-  // Simple AI sentiment check
   const toxicWords = ["badword1", "badword2"];
-  const isToxic = toxicWords.some(word => msg.toLowerCase().includes(word));
+  const isToxic = toxicWords.some(w =>
+    chatInput.value.toLowerCase().includes(w)
+  );
 
   await db.collection("messages").add({
-    text: msg,
+    text: chatInput.value,
     user: auth.currentUser.email,
-    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    channel: currentChannel,
     sentiment: isToxic ? "toxic" : "safe",
-    channel: currentChannel
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
   });
 
   chatInput.value = "";
 });
 
 // =====================
-// LOAD MESSAGES
+// LOAD MESSAGES (OPTION B)
 // =====================
 function loadMessages() {
   chatBox.innerHTML = "";
 
   db.collection("messages")
     .where("channel", "==", currentChannel)
-    .where("timestamp", ">=", userSignupTime) // Option B: only after signup
+    .where("timestamp", ">=", userSignupTime)
     .orderBy("timestamp")
     .onSnapshot(snapshot => {
       chatBox.innerHTML = "";
+
       snapshot.forEach(doc => {
         const m = doc.data();
-        const msgDiv = document.createElement("div");
-        msgDiv.classList.add("max-w-xs", "p-3", "rounded-xl", "break-words", "hover:shadow-lg", "transition", "duration-200");
+        const div = document.createElement("div");
 
-        if (m.user === auth.currentUser.email) {
-          msgDiv.classList.add("bg-blue-600", "self-end", "text-white");
-        } else {
-          msgDiv.classList.add("bg-gray-700", "self-start", "text-gray-200");
-        }
+        div.className =
+          "max-w-xs p-3 rounded-xl break-words transition";
 
-        const sentimentColor = m.sentiment === "toxic" ? "text-red-400" : "text-green-400";
-        const timestamp = m.timestamp ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString() : "";
+        div.classList.add(
+          m.user === auth.currentUser.email
+            ? "bg-blue-600 self-end text-white"
+            : "bg-gray-700 self-start text-gray-200"
+        );
 
-        msgDiv.innerHTML = `<strong>${m.user.split("@")[0]}:</strong> ${m.text}
-          <div class="text-xs ${sentimentColor} mt-1">${m.sentiment.toUpperCase()} • ${timestamp}</div>`;
-        chatBox.appendChild(msgDiv);
+        div.innerHTML = `
+          <strong>${m.user.split("@")[0]}</strong>: ${m.text}
+          <div class="text-xs mt-1 ${
+            m.sentiment === "toxic"
+              ? "text-red-400"
+              : "text-green-400"
+          }">
+            ${m.sentiment.toUpperCase()}
+          </div>
+        `;
+
+        chatBox.appendChild(div);
       });
+
       chatBox.scrollTop = chatBox.scrollHeight;
     });
+}
+
+// =====================
+// ONLINE USERS
+// =====================
+function listenForOnlineUsers() {
+  db.collection("onlineUsers").onSnapshot(snapshot => {
+    const users = [...snapshot.docs].map(d =>
+      d.data().email.split("@")[0]
+    );
+
+    ["users-list", "users-list-chat"].forEach(id => {
+      const ul = document.getElementById(id);
+      ul.innerHTML = "";
+      users.forEach(u => {
+        const li = document.createElement("li");
+        li.textContent = u;
+        ul.appendChild(li);
+      });
+    });
+  });
 }
 
 // =====================
 // TYPING INDICATOR
 // =====================
 chatInput.addEventListener("input", () => {
-  const typingDoc = typingRef.doc(currentChannel);
-  typingDoc.set({
+  if (!currentChannel) return;
+
+  typingRef.doc(currentChannel).set({
     [auth.currentUser.uid]: chatInput.value.length > 0
   }, { merge: true });
 });
 
-// Listen for typing users
-typingRef.doc(currentChannel).onSnapshot(doc => {
-  const typingData = doc.data() || {};
-  const usersTyping = Object.entries(typingData)
-    .filter(([uid, isTyping]) => isTyping && uid !== auth.currentUser.uid)
-    .map(([uid]) => uid); // For now we show count only
+typingRef.onSnapshot(snapshot => {
+  if (!currentChannel) return;
+  const doc = snapshot.docs.find(d => d.id === currentChannel);
+  if (!doc) return;
 
-  if (usersTyping.length === 0) statusEl.textContent = "Online";
-  else statusEl.textContent = `${usersTyping.length} user(s) typing...`;
+  const typing = Object.values(doc.data() || {}).some(v => v);
+  statusEl.textContent = typing ? "Someone is typing..." : "Online";
 });
