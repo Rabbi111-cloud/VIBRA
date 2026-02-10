@@ -1,10 +1,10 @@
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAyVDmWsEtImAjPY8-5bcFhSkm-4j5dv1U",
+  authDomain: "vibra-7146c.firebaseapp.com",
+  projectId: "vibra-7146c",
+  storageBucket: "vibra-7146c.firebasestorage.app",
+  messagingSenderId: "482860500023",
+  appId: "1:482860500023:web:3951e78e73d7d2a1d32bb2"
 };
 
 firebase.initializeApp(firebaseConfig);
