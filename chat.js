@@ -1,4 +1,3 @@
-// Firebase config same as script.js
 const firebaseConfig = {
   apiKey: "AIzaSyAyVDmWsEtImAjPY8-5bcFhSkm-4j5dv1U",
   authDomain: "vibra-7146c.firebaseapp.com",
@@ -12,28 +11,27 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Redirect if not logged in
+const chatBox = document.getElementById("chat-box");
+const chatForm = document.getElementById("chat-form");
+
+// Redirect to login if not signed in
 auth.onAuthStateChanged(user => {
   if (!user) {
-    window.location.href = "index.html";
+    window.location.href = "login.html";
   }
 });
 
 // Logout
 document.getElementById("logout-btn").addEventListener("click", () => {
-  auth.signOut().then(() => window.location.href = "index.html");
+  auth.signOut().then(() => window.location.href = "login.html");
 });
 
-// Chat form
-const chatForm = document.getElementById("chat-form");
-const chatBox = document.getElementById("chat-box");
-
+// Send message
 chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const msg = document.getElementById("chat-msg").value;
-  if(msg.trim() === "") return;
+  const msg = document.getElementById("chat-msg").value.trim();
+  if (!msg) return;
 
-  // Save message to Firestore (placeholder)
   db.collection("messages").add({
     text: msg,
     user: auth.currentUser.email,
@@ -43,13 +41,15 @@ chatForm.addEventListener("submit", (e) => {
   document.getElementById("chat-msg").value = "";
 });
 
-// Listen for new messages
+// Listen for real-time messages
 db.collection("messages").orderBy("timestamp")
   .onSnapshot(snapshot => {
     chatBox.innerHTML = "";
     snapshot.forEach(doc => {
       const m = doc.data();
-      chatBox.innerHTML += `<p><strong>${m.user}:</strong> ${m.text}</p>`;
+      const msgDiv = document.createElement("p");
+      msgDiv.innerHTML = `<strong>${m.user}:</strong> ${m.text}`;
+      chatBox.appendChild(msgDiv);
     });
     chatBox.scrollTop = chatBox.scrollHeight;
   });
