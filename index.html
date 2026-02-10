@@ -3,20 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Sentiment Chat</title>
+<title>VIBRA</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script defer src="index.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-900 text-white font-sans">
+<body class="bg-gradient-to-b from-gray-900 to-gray-800 text-white font-sans flex h-screen">
 
-<section class="max-w-4xl mx-auto py-24 text-center">
-  <h1 class="text-5xl font-bold mb-6">Welcome to AI Sentiment Chat</h1>
-  <p class="text-xl mb-12">Chat worldwide safely with AI moderation.</p>
-  <div class="flex justify-center gap-6">
-    <a href="signup.html" class="bg-green-600 px-8 py-4 rounded-lg font-semibold hover:bg-green-700">Sign Up</a>
-    <a href="login.html" class="bg-blue-600 px-8 py-4 rounded-lg font-semibold hover:bg-blue-700">Login</a>
+<!-- Sidebar -->
+<aside class="w-64 bg-gray-850 flex flex-col justify-between">
+  <div class="p-4">
+    <h1 class="text-2xl font-bold mb-6">AI Chat</h1>
+    <div>
+      <h2 class="font-semibold mb-2">Channels</h2>
+      <ul id="channels-list" class="space-y-2">
+        <li class="px-3 py-2 rounded hover:bg-gray-700 cursor-pointer active-channel"># general</li>
+        <li class="px-3 py-2 rounded hover:bg-gray-700 cursor-pointer"># ai-sentiment</li>
+        <li class="px-3 py-2 rounded hover:bg-gray-700 cursor-pointer"># random</li>
+      </ul>
+    </div>
   </div>
-</section>
+
+  <div class="p-4">
+    <p id="user-email" class="text-gray-400 mb-4"></p>
+    <button id="logout-btn" class="bg-red-600 px-4 py-2 rounded hover:bg-red-700 w-full">Logout</button>
+  </div>
+</aside>
+
+<!-- Main Chat Area -->
+<div class="flex-1 flex flex-col">
+  <header class="bg-gray-800 p-4 shadow flex justify-between items-center">
+    <h2 id="channel-name" class="text-xl font-semibold"># general</h2>
+    <p id="status" class="text-gray-400 text-sm">Online</p>
+  </header>
+
+  <!-- Messages -->
+  <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-3 scroll-smooth bg-gradient-to-t from-gray-900 to-gray-800">
+    <!-- Messages appear here -->
+  </div>
+
+  <!-- Input -->
+  <form id="chat-form" class="p-4 flex gap-2 bg-gray-900 border-t border-gray-700">
+    <input id="chat-msg" type="text" placeholder="Type a message..." class="flex-1 px-4 py-2 rounded-lg bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <button type="submit" class="bg-blue-600 px-6 py-2 rounded-lg hover:bg-blue-700 transition">Send</button>
+  </form>
+</div>
 
 </body>
 </html>
