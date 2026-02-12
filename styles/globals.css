@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base body styling */
 body {
   @apply bg-white text-gray-900;
+}
+
+/* Hero background floating circles animation */
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.2); opacity: 0.2; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 6s ease-in-out infinite;
 }
