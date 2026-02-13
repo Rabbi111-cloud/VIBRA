@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import { auth } from "../firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 import Hero from "../components/Hero";
 import Features from "../components/Features";
@@ -23,17 +23,25 @@ export default function Home() {
         setCheckingAuth(false);
       }
     });
-
     return () => unsubscribe();
   }, [router]);
 
-  // Loading screen while checking auth
+  // 🔥 Login with Google
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      router.push("/dashboard");
+    } catch (error) {
+      console.error(error);
+      alert("Login failed. Please try again.");
+    }
+  };
+
   if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-700 text-white">
-        <p className="text-xl font-semibold animate-pulse">
-          Loading Vibra...
-        </p>
+        <p className="text-xl font-semibold animate-pulse">Loading Vibra...</p>
       </div>
     );
   }
@@ -51,7 +59,19 @@ export default function Home() {
       <Hero />
       <Features />
       <Screenshots />
-      <CTA />
+
+      {/* CTA Section */}
+      <CTA>
+        <div className="flex justify-center gap-4 mt-6">
+          <button
+            onClick={handleGoogleLogin}
+            className="px-6 py-3 bg-white text-indigo-700 rounded-lg font-medium hover:bg-gray-100 transition"
+          >
+            Sign up / Login with Google
+          </button>
+        </div>
+      </CTA>
+
       <Testimonials />
       <Footer />
     </>
