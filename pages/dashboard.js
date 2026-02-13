@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [notification, setNotification] = useState("");
   const bottomRef = useRef(null);
 
   // 🔐 Protect route
@@ -33,10 +34,10 @@ export default function Dashboard() {
       } else {
         setUser(currentUser);
 
-        // Mark user online
         await setDoc(doc(db, "onlineUsers", currentUser.uid), {
           email: currentUser.email,
           uid: currentUser.uid,
+          photoURL: currentUser.photoURL || "",
         });
       }
       setLoading(false);
@@ -45,20 +46,18 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  // 🟢 Listen to online users
+  // 🟢 Online users
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "onlineUsers"),
       (snapshot) => {
-        setOnlineUsers(
-          snapshot.docs.map((doc) => doc.data())
-        );
+        setOnlineUsers(snapshot.docs.map((doc) => doc.data()));
       }
     );
     return () => unsubscribe();
   }, []);
 
-  // 💬 Real-time messages per room
+  // 💬 Real-time messages
   useEffect(() => {
     const q = query(
       collection(db, "rooms", currentRoom, "messages"),
@@ -81,20 +80,26 @@ export default function Dashboard() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🧠 Simple Toxicity Detection
-  const containsToxicity = (text) => {
-    const bannedWords = ["hate", "stupid", "idiot"];
-    return bannedWords.some((word) =>
-      text.toLowerCase().includes(word)
-    );
+  const moderateMessage = async (text) => {
+    const res = await fetch("/api/moderate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    });
+
+    const data = await res.json();
+    return data.flagged;
   };
 
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!message.trim()) return;
 
-    if (containsToxicity(message)) {
-      alert("⚠ Please use respectful language.");
+    const flagged = await moderateMessage(message);
+
+    if (flagged) {
+      setNotification("⚠ Message blocked by AI moderation.");
+      setTimeout(() => setNotification(""), 3000);
       return;
     }
 
@@ -104,6 +109,7 @@ export default function Dashboard() {
         text: message,
         email: user.email,
         uid: user.uid,
+        photoURL: user.photoURL || "",
         createdAt: serverTimestamp(),
       }
     );
@@ -117,20 +123,29 @@ export default function Dashboard() {
     router.push("/login");
   };
 
+  const formatTime = (timestamp) => {
+    if (!timestamp) return "";
+    const date = timestamp.toDate();
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-900 text-white">
 
       {/* Sidebar */}
-      <div className="w-60 bg-gray-800 p-4 flex flex-col">
+      <div className="md:w-60 bg-gray-800 p-4">
         <h2 className="text-lg font-bold mb-4">Rooms</h2>
 
         {rooms.map((room) => (
           <button
             key={room}
             onClick={() => setCurrentRoom(room)}
-            className={`text-left px-3 py-2 rounded mb-2 ${
+            className={`block w-full text-left px-3 py-2 rounded mb-2 ${
               currentRoom === room
                 ? "bg-indigo-600"
                 : "hover:bg-gray-700"
@@ -140,40 +155,43 @@ export default function Dashboard() {
           </button>
         ))}
 
-        <div className="mt-auto">
-          <p className="text-sm mb-2">
-            {user.email}
-          </p>
-          <button
-            onClick={handleLogout}
-            className="bg-red-500 w-full py-2 rounded"
-          >
-            Logout
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="mt-6 bg-red-500 w-full py-2 rounded"
+        >
+          Logout
+        </button>
       </div>
 
-      {/* Chat Section */}
+      {/* Chat */}
       <div className="flex-1 flex flex-col bg-gray-700">
 
         <div className="p-4 border-b border-gray-600 font-semibold">
           # {currentRoom}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {notification && (
+          <div className="bg-yellow-500 text-black p-2 text-center">
+            {notification}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`max-w-xs ${
-                msg.uid === user.uid
-                  ? "ml-auto bg-indigo-600"
-                  : "bg-gray-600"
-              } p-3 rounded-lg`}
-            >
-              <p className="text-xs opacity-70">
-                {msg.email}
-              </p>
-              <p>{msg.text}</p>
+            <div key={msg.id} className="flex gap-3 items-start">
+              <img
+                src={msg.photoURL || "/default-avatar.png"}
+                className="w-8 h-8 rounded-full"
+                alt="avatar"
+              />
+              <div>
+                <div className="text-sm opacity-70">
+                  {msg.email} • {formatTime(msg.createdAt)}
+                </div>
+                <div className="bg-gray-600 p-3 rounded-lg">
+                  {msg.text}
+                </div>
+              </div>
             </div>
           ))}
           <div ref={bottomRef}></div>
@@ -187,26 +205,12 @@ export default function Dashboard() {
             className="flex-1 px-3 py-2 rounded bg-gray-800"
             placeholder="Type message..."
             value={message}
-            onChange={(e) =>
-              setMessage(e.target.value)
-            }
+            onChange={(e) => setMessage(e.target.value)}
           />
           <button className="bg-indigo-600 px-5 rounded">
             Send
           </button>
         </form>
-      </div>
-
-      {/* Online Users */}
-      <div className="w-60 bg-gray-800 p-4">
-        <h2 className="font-bold mb-3">
-          🟢 Online Users
-        </h2>
-        {onlineUsers.map((u) => (
-          <p key={u.uid} className="text-sm mb-2">
-            {u.email}
-          </p>
-        ))}
       </div>
     </div>
   );
