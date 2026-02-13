@@ -17,7 +17,6 @@ export default function Dashboard() {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Chat / Rooms state
   const [rooms, setRooms] = useState([]);
   const [activeRoom, setActiveRoom] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -25,37 +24,31 @@ export default function Dashboard() {
   const [newRoom, setNewRoom] = useState("");
   const messagesEndRef = useRef(null);
 
-  // 🔒 Protect route + add to online users
+  // 🔒 Protect route + online users
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        router.push("/");
-      } else {
+      if (!currentUser) router.push("/");
+      else {
         setUser(currentUser);
-
-        // Add/update user in onlineUsers collection
         await setDoc(doc(db, "onlineUsers", currentUser.uid), {
           email: currentUser.email,
           photoURL: currentUser.photoURL || "",
           lastActive: new Date(),
         });
-
         setLoading(false);
       }
     });
 
-    // Listen to online users in real-time
+    // Online users listener
     const unsubscribeOnline = onSnapshot(
       collection(db, "onlineUsers"),
-      (snapshot) => {
-        setOnlineUsers(snapshot.docs.map((doc) => doc.data()));
-      }
+      (snapshot) => setOnlineUsers(snapshot.docs.map((d) => d.data()))
     );
 
-    // Listen to rooms in real-time
-    const unsubscribeRooms = onSnapshot(collection(db, "rooms"), (snapshot) => {
-      setRooms(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    });
+    // Rooms listener
+    const unsubscribeRooms = onSnapshot(collection(db, "rooms"), (snapshot) =>
+      setRooms(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
 
     return () => {
       unsubscribeAuth();
@@ -64,7 +57,7 @@ export default function Dashboard() {
     };
   }, [router]);
 
-  // Listen to messages for active room
+  // Messages listener
   useEffect(() => {
     if (!activeRoom) return;
     const unsubscribeMessages = onSnapshot(
@@ -72,23 +65,20 @@ export default function Dashboard() {
       (snapshot) => {
         const msgs = snapshot.docs
           .map((doc) => doc.data())
-          .sort((a, b) => a.createdAt.seconds - b.createdAt.seconds);
+          .sort((a, b) => a.createdAt?.seconds - b.createdAt?.seconds || 0);
         setMessages(msgs);
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     );
-
     return unsubscribeMessages;
   }, [activeRoom]);
 
-  // Create a new room
   const createRoom = async () => {
     if (!newRoom) return;
     await setDoc(doc(db, "rooms", newRoom), { name: newRoom, createdAt: new Date() });
     setNewRoom("");
   };
 
-  // Send a message
   const sendMessage = async () => {
     if (!newMessage || !activeRoom || !user) return;
     const msgData = {
@@ -101,7 +91,6 @@ export default function Dashboard() {
     setNewMessage("");
   };
 
-  // Logout
   const handleLogout = async () => {
     if (!user) return;
     await deleteDoc(doc(db, "onlineUsers", user.uid));
@@ -120,7 +109,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-3xl font-bold text-indigo-600">Vibra Dashboard</h1>
@@ -135,10 +123,7 @@ export default function Dashboard() {
         {/* User Profile */}
         <div className="bg-white p-6 rounded-xl shadow flex items-center gap-4">
           {user.photoURL ? (
-            <img
-              src={user.photoURL}
-              className="w-16 h-16 rounded-full object-cover"
-            />
+            <img src={user.photoURL} className="w-16 h-16 rounded-full object-cover" />
           ) : (
             <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white text-2xl font-bold">
               {user.email?.charAt(0).toUpperCase()}
@@ -150,12 +135,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Main Layout */}
+        {/* Layout */}
         <div className="flex flex-col lg:flex-row gap-6">
-
-          {/* Rooms List */}
+          {/* Rooms */}
           <div className="w-full lg:w-1/4 bg-white p-4 rounded-xl shadow h-[500px] overflow-y-auto">
-            <h3 className="font-semibold mb-4">Rooms</h3>
+            <h3 className="font-semibold mb-4">Channels</h3>
             {rooms.map((room) => (
               <div
                 key={room.id}
@@ -167,10 +151,9 @@ export default function Dashboard() {
                 {room.name}
               </div>
             ))}
-
             <input
               type="text"
-              placeholder="New room..."
+              placeholder="New channel..."
               value={newRoom}
               onChange={(e) => setNewRoom(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && createRoom()}
@@ -178,16 +161,13 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Chat Box */}
+          {/* Chat */}
           <div className="flex-1 bg-white p-4 rounded-xl shadow h-[500px] flex flex-col">
             <div className="flex-1 overflow-y-auto mb-2">
               {messages.map((msg, idx) => (
                 <div key={idx} className="flex items-center gap-2 mb-2">
                   {msg.senderPhotoURL ? (
-                    <img
-                      src={msg.senderPhotoURL}
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
+                    <img src={msg.senderPhotoURL} className="w-8 h-8 rounded-full object-cover" />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
                       {msg.senderEmail.charAt(0).toUpperCase()}
@@ -201,7 +181,6 @@ export default function Dashboard() {
               ))}
               <div ref={messagesEndRef} />
             </div>
-
             <input
               type="text"
               placeholder="Type a message..."
@@ -211,26 +190,16 @@ export default function Dashboard() {
               className="p-2 border rounded"
             />
           </div>
-
         </div>
 
         {/* Online Users */}
         <div className="bg-white p-6 rounded-xl shadow">
-          <h2 className="text-xl font-semibold mb-4">
-            Online Users ({onlineUsers.length})
-          </h2>
-
+          <h2 className="text-xl font-semibold mb-4">Online Users ({onlineUsers.length})</h2>
           <div className="space-y-3">
-            {onlineUsers.map((onlineUser, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-              >
+            {onlineUsers.map((onlineUser, idx) => (
+              <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                 {onlineUser.photoURL ? (
-                  <img
-                    src={onlineUser.photoURL}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
+                  <img src={onlineUser.photoURL} className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
                     {onlineUser.email?.charAt(0).toUpperCase()}
