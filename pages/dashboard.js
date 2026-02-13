@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { auth, db } from "../firebase";
 import { signOut } from "firebase/auth";
@@ -16,9 +14,10 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [loadingAuth, setLoadingAuth] = useState(true);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const bottomRef = useRef(null);
 
   // 🔐 Protect dashboard
   useEffect(() => {
@@ -28,30 +27,34 @@ export default function Dashboard() {
       } else {
         setUser(currentUser);
       }
-      setLoadingAuth(false);
+      setLoading(false);
     });
 
     return () => unsubscribe();
   }, [router]);
 
-  // 💬 Real-time messages
+  // 💬 Real-time Firestore listener
   useEffect(() => {
     const q = query(
       collection(db, "messages"),
       orderBy("createdAt")
     );
 
-    const unsubscribeMessages = onSnapshot(q, (snapshot) => {
-      setMessages(
-        snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-      );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(msgs);
     });
 
-    return () => unsubscribeMessages();
+    return () => unsubscribe();
   }, []);
+
+  // Auto scroll
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -72,66 +75,81 @@ export default function Dashboard() {
     router.push("/login");
   };
 
-  if (loadingAuth) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading dashboard...</p>
+        Loading...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[80vh]">
 
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-indigo-600">Vibra Chat</h1>
+        {/* Header */}
+        <div className="flex justify-between items-center p-4 border-b">
+          <div>
+            <h1 className="text-xl font-bold text-indigo-600">Vibra Chat</h1>
+            <p className="text-sm text-gray-500">
+              Logged in as: <span className="font-medium">{user.email}</span>
+            </p>
+          </div>
+
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg"
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
           >
             Logout
           </button>
         </div>
 
-        <p className="mb-4 text-sm text-gray-600">
-          Logged in as: <strong>{user.email}</strong>
-        </p>
-
-        {/* 💬 Chat Box */}
-        <div className="border rounded-lg p-4 bg-gray-50 h-80 flex flex-col">
-          <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-            {messages.map((msg) => (
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${
+                msg.uid === user.uid
+                  ? "justify-end"
+                  : "justify-start"
+              }`}
+            >
               <div
-                key={msg.id}
-                className={`mb-2 ${
-                  msg.uid === user.uid ? "text-right" : "text-left"
+                className={`px-4 py-2 rounded-2xl max-w-xs ${
+                  msg.uid === user.uid
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-200 text-gray-800"
                 }`}
               >
-                <p className="text-sm text-gray-500">{msg.email}</p>
-                <p className="inline-block bg-indigo-100 px-3 py-2 rounded">
-                  {msg.text}
-                </p>
+                <p className="text-xs opacity-70 mb-1">{msg.email}</p>
+                <p>{msg.text}</p>
               </div>
-            ))}
-          </div>
-
-          <form onSubmit={sendMessage} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Type your message..."
-              className="flex-1 border px-3 py-2 rounded"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded"
-            >
-              Send
-            </button>
-          </form>
+            </div>
+          ))}
+          <div ref={bottomRef}></div>
         </div>
+
+        {/* Input */}
+        <form
+          onSubmit={sendMessage}
+          className="p-4 border-t flex gap-2"
+        >
+          <input
+            type="text"
+            placeholder="Type a message..."
+            className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+
+          <button
+            type="submit"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg transition"
+          >
+            Send
+          </button>
+        </form>
       </div>
     </div>
   );
