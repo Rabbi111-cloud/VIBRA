@@ -14,54 +14,59 @@ import {
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
-  const [onlineUsers, setOnlineUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState([]);
 
-  const [rooms, setRooms] = useState([]);
-  const [activeRoom, setActiveRoom] = useState(null);
+  const channels = [
+    "general",
+    "tech",
+    "sports",
+    "fashion",
+    "lifestyle",
+    "education",
+  ];
+
+  const [activeChannel, setActiveChannel] = useState("general");
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [newRoom, setNewRoom] = useState("");
+
   const messagesEndRef = useRef(null);
 
-  // 🔒 Protect route + online users
+  // 🔒 Protect route + online presence
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) router.push("/");
-      else {
+      if (!currentUser) {
+        router.push("/");
+      } else {
         setUser(currentUser);
+
         await setDoc(doc(db, "onlineUsers", currentUser.uid), {
           email: currentUser.email,
           photoURL: currentUser.photoURL || "",
           lastActive: new Date(),
         });
+
         setLoading(false);
       }
     });
 
-    // Online users listener
     const unsubscribeOnline = onSnapshot(
       collection(db, "onlineUsers"),
-      (snapshot) => setOnlineUsers(snapshot.docs.map((d) => d.data()))
-    );
-
-    // Rooms listener
-    const unsubscribeRooms = onSnapshot(collection(db, "rooms"), (snapshot) =>
-      setRooms(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      (snapshot) => {
+        setOnlineUsers(snapshot.docs.map((doc) => doc.data()));
+      }
     );
 
     return () => {
       unsubscribeAuth();
       unsubscribeOnline();
-      unsubscribeRooms();
     };
   }, [router]);
 
-  // Messages listener
+  // 🔥 Listen to channel messages
   useEffect(() => {
-    if (!activeRoom) return;
-    const unsubscribeMessages = onSnapshot(
-      collection(db, "rooms", activeRoom, "messages"),
+    const unsubscribe = onSnapshot(
+      collection(db, "channels", activeChannel, "messages"),
       (snapshot) => {
         const msgs = snapshot.docs
           .map((doc) => doc.data())
@@ -70,29 +75,25 @@ export default function Dashboard() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     );
-    return unsubscribeMessages;
-  }, [activeRoom]);
 
-  const createRoom = async () => {
-    if (!newRoom) return;
-    await setDoc(doc(db, "rooms", newRoom), { name: newRoom, createdAt: new Date() });
-    setNewRoom("");
-  };
+    return unsubscribe;
+  }, [activeChannel]);
 
+  // 🔥 Send message
   const sendMessage = async () => {
-    if (!newMessage || !activeRoom || !user) return;
-    const msgData = {
+    if (!newMessage.trim() || !user) return;
+
+    await addDoc(collection(db, "channels", activeChannel, "messages"), {
       text: newMessage,
       senderEmail: user.email,
       senderPhotoURL: user.photoURL || "",
       createdAt: new Date(),
-    };
-    await addDoc(collection(db, "rooms", activeRoom, "messages"), msgData);
+    });
+
     setNewMessage("");
   };
 
   const handleLogout = async () => {
-    if (!user) return;
     await deleteDoc(doc(db, "onlineUsers", user.uid));
     await signOut(auth);
     router.push("/");
@@ -101,117 +102,94 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-indigo-600 text-white">
-        Loading Dashboard...
+        Loading Vibra...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-3xl font-bold text-indigo-600">Vibra Dashboard</h1>
+    <div className="min-h-screen bg-gray-100 flex">
+
+      {/* Sidebar - Channels */}
+      <div className="w-64 bg-white shadow p-4">
+        <h2 className="text-xl font-bold mb-6 text-indigo-600">
+          Vibra Channels
+        </h2>
+
+        {channels.map((channel) => (
+          <div
+            key={channel}
+            onClick={() => setActiveChannel(channel)}
+            className={`p-3 mb-2 rounded cursor-pointer capitalize ${
+              activeChannel === channel
+                ? "bg-indigo-100 font-semibold"
+                : "hover:bg-gray-100"
+            }`}
+          >
+            #{channel}
+          </div>
+        ))}
+
+        <div className="mt-10">
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+            className="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600 transition"
           >
             Logout
           </button>
         </div>
+      </div>
 
-        {/* User Profile */}
-        <div className="bg-white p-6 rounded-xl shadow flex items-center gap-4">
-          {user.photoURL ? (
-            <img src={user.photoURL} className="w-16 h-16 rounded-full object-cover" />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white text-2xl font-bold">
-              {user.email?.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <div>
-            <p className="font-medium">{user.email}</p>
-            <p className="text-sm text-gray-500">Signed in with Google</p>
-          </div>
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+
+        {/* Chat Header */}
+        <div className="bg-white shadow p-4 font-semibold text-lg capitalize">
+          #{activeChannel}
         </div>
 
-        {/* Layout */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Rooms */}
-          <div className="w-full lg:w-1/4 bg-white p-4 rounded-xl shadow h-[500px] overflow-y-auto">
-            <h3 className="font-semibold mb-4">Channels</h3>
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                onClick={() => setActiveRoom(room.id)}
-                className={`p-2 mb-2 rounded cursor-pointer ${
-                  activeRoom === room.id ? "bg-indigo-100 font-bold" : ""
-                }`}
-              >
-                {room.name}
-              </div>
-            ))}
-            <input
-              type="text"
-              placeholder="New channel..."
-              value={newRoom}
-              onChange={(e) => setNewRoom(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createRoom()}
-              className="mt-2 p-2 w-full border rounded"
-            />
-          </div>
-
-          {/* Chat */}
-          <div className="flex-1 bg-white p-4 rounded-xl shadow h-[500px] flex flex-col">
-            <div className="flex-1 overflow-y-auto mb-2">
-              {messages.map((msg, idx) => (
-                <div key={idx} className="flex items-center gap-2 mb-2">
-                  {msg.senderPhotoURL ? (
-                    <img src={msg.senderPhotoURL} className="w-8 h-8 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm font-bold">
-                      {msg.senderEmail.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div>
-                    <span className="font-semibold text-sm">{msg.senderEmail}</span>
-                    <p>{msg.text}</p>
-                  </div>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {messages.map((msg, index) => (
+            <div key={index} className="flex items-start gap-3">
+              {msg.senderPhotoURL ? (
+                <img
+                  src={msg.senderPhotoURL}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                  {msg.senderEmail?.charAt(0).toUpperCase()}
                 </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <input
-              type="text"
-              placeholder="Type a message..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              className="p-2 border rounded"
-            />
-          </div>
-        </div>
+              )}
 
-        {/* Online Users */}
-        <div className="bg-white p-6 rounded-xl shadow">
-          <h2 className="text-xl font-semibold mb-4">Online Users ({onlineUsers.length})</h2>
-          <div className="space-y-3">
-            {onlineUsers.map((onlineUser, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                {onlineUser.photoURL ? (
-                  <img src={onlineUser.photoURL} className="w-10 h-10 rounded-full object-cover" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
-                    {onlineUser.email?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span className="font-medium">{onlineUser.email}</span>
-                <span className="ml-auto text-green-500 text-sm">● Online</span>
+              <div>
+                <span className="font-semibold text-sm">
+                  {msg.senderEmail}
+                </span>
+                <p>{msg.text}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
         </div>
 
+        {/* Message Input */}
+        <div className="p-4 bg-white border-t flex gap-3">
+          <input
+            type="text"
+            placeholder="Type your message..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            className="flex-1 border rounded px-3 py-2"
+          />
+          <button
+            onClick={sendMessage}
+            className="bg-indigo-600 text-white px-5 py-2 rounded hover:bg-indigo-700 transition"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
