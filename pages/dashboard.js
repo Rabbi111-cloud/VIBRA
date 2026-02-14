@@ -19,7 +19,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  const channels = ["general", "tech", "sports", "fashion", "lifestyle", "education"];
+  const channels = [
+    "general",
+    "tech",
+    "sports",
+    "fashion",
+    "lifestyle",
+    "education",
+  ];
   const [activeChannel, setActiveChannel] = useState("general");
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -29,7 +36,7 @@ export default function Dashboard() {
 
   const messagesEndRef = useRef(null);
 
-  // 🔒 Auth + Online presence
+  // 🔒 Auth + online presence
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
@@ -84,15 +91,12 @@ export default function Dashboard() {
     return unsubscribe;
   }, [activeChannel]);
 
-  // 🚫 Profanity Filter
+  // 🚫 Profanity filter
   const bannedWords = ["fuck", "shit", "bitch", "asshole", "damn"];
+  const containsProfanity = (text) =>
+    bannedWords.some((word) => text.toLowerCase().includes(word));
 
-  const containsProfanity = (text) => {
-    const lower = text.toLowerCase();
-    return bannedWords.some((word) => lower.includes(word));
-  };
-
-  // 📤 Send Message
+  // 📤 Send message
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
 
@@ -112,12 +116,12 @@ export default function Dashboard() {
     setNewMessage("");
   };
 
-  // 🗑 Delete Message
+  // 🗑 Delete message
   const deleteMessage = async (id) => {
     await deleteDoc(doc(db, "channels", activeChannel, "messages", id));
   };
 
-  // ✏ Edit Message
+  // ✏ Edit message
   const startEdit = (msg) => {
     setEditingId(msg.id);
     setEditingText(msg.text);
@@ -129,13 +133,10 @@ export default function Dashboard() {
       return;
     }
 
-    await updateDoc(
-      doc(db, "channels", activeChannel, "messages", editingId),
-      {
-        text: editingText,
-        edited: true,
-      }
-    );
+    await updateDoc(doc(db, "channels", activeChannel, "messages", editingId), {
+      text: editingText,
+      edited: true,
+    });
 
     setEditingId(null);
     setEditingText("");
@@ -160,9 +161,7 @@ export default function Dashboard() {
 
       {/* Sidebar */}
       <div className="w-64 bg-white shadow p-4">
-        <h2 className="text-xl font-bold mb-6 text-indigo-600">
-          Vibra Channels
-        </h2>
+        <h2 className="text-xl font-bold mb-6 text-indigo-600">Vibra Channels</h2>
 
         {channels.map((channel) => (
           <div
@@ -205,11 +204,9 @@ export default function Dashboard() {
                   {msg.createdAt?.toDate?.().toLocaleTimeString()}
                 </span>
 
-                {msg.edited && (
-                  <span className="text-xs text-gray-400">(edited)</span>
-                )}
+                {msg.edited && <span className="text-xs text-gray-400">(edited)</span>}
 
-                {user.email === msg.senderEmail && (
+                {user?.email === msg.senderEmail && (
                   <>
                     <button
                       onClick={() => startEdit(msg)}
@@ -247,9 +244,10 @@ export default function Dashboard() {
               )}
 
             </div>
-          )}
+          ))}
 
           <div ref={messagesEndRef} />
+
         </div>
 
         {/* Input */}
@@ -268,6 +266,7 @@ export default function Dashboard() {
             Send
           </button>
         </div>
+
       </div>
     </div>
   );
